@@ -1,0 +1,49 @@
+name: Check for New Python Version
+
+on:
+#  schedule:
+#    - cron: '0 0 * * *'  # Uruchamia się codziennie o północy UTC
+  workflow_dispatch:      # Pozwala na ręczne uruchomienie workflow
+
+jobs:
+  check-python-update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check runner env
+        run: |
+          uname -a && id
+          echo [ $(which python) ] && echo $(python --version)
+          echo [ $(which python3) ] && echo $(python3 --version)
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Use newest Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'  # Używa najnowszej wersji z gałęzi 3.x
+
+      - name: Check newest Pythona version from python.org
+        id: get-latest-python
+        run: |
+          LATEST_PYTHON=$(curl -s https://www.python.org/ftp/python/ | grep -Eo 'href="[0-9]+\.[0-9]+\.[0-9]+/"' | sed 's/href="//' | sed 's/\/"//' | sort -V | tail -n 1)
+          echo "Najnowsza dostępna wersja Pythona: $LATEST_PYTHON"
+          echo "::set-output name=latest::$LATEST_PYTHON"
+
+      - name: Python installed version
+        id: get-installed-python
+        run: |
+          INSTALLED_PYTHON=$(python --version | awk '{print $2}')
+          echo "Zainstalowana wersja Pythona: $INSTALLED_PYTHON"
+          echo "::set-output name=installed::$INSTALLED_PYTHON"
+
+      - name: Compare versions
+        if: steps.get-latest-python.outputs.latest != steps.get-installed-python.outputs.installed
+        run: |
+          echo "New version is available!"
+
+
+      - name: Same version
+        if: steps.get-latest-python.outputs.latest == steps.get-installed-python.outputs.installed
+        run: echo "Zainstalowana wersja Pythona jest aktualna."
